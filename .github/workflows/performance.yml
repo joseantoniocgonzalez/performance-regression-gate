@@ -1,0 +1,53 @@
+name: Performance Quality Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Performance scenario
+        required: true
+        default: normal
+        type: choice
+        options:
+          - normal
+          - degraded
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and start API
+        run: docker compose up -d --build
+
+      - name: Wait for API
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health; then
+              echo
+              echo "API is ready"
+              exit 0
+            fi
+
+            echo "Waiting for API... ($attempt/30)"
+            sleep 1
+          done
+
+          echo "API did not become ready"
+          docker compose logs api
+          exit 1
+
+      - name: Set up k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run performance quality gate
+        env:
+          MODE: ${{ inputs.mode }}
+        run: k6 run k6/smoke.js
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down
