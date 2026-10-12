@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Performance Regression Gate</title>
+
+  <style>
+    :root {
+      --bg: #070b12;
+      --panel: #0d1420;
+      --panel-2: #111b2b;
+      --border: #233044;
+      --text: #edf4ff;
+      --muted: #8fa1b8;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top, #10203c 0, transparent 34%),
+        var(--bg);
+      color: var(--text);
+      font-family:
+        Inter, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .container {
+      width: min(1180px, 92%);
+      margin: 0 auto;
+      padding: 56px 0 70px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap: 28px;
+      align-items: center;
+      margin-bottom: 42px;
+    }
+
+    .eyebrow {
+      color: var(--blue);
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      font-size: .78rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.5rem, 6vw, 4.8rem);
+      line-height: .98;
+      letter-spacing: -.045em;
+    }
+
+    .hero p {
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 1.08rem;
+      line-height: 1.7;
+      margin: 22px 0 0;
+    }
+
+    .hero-card {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(13, 20, 32, .9);
+      padding: 24px;
+    }
+
+    .hero-card small {
+      color: var(--muted);
+      display: block;
+      margin-bottom: 7px;
+    }
+
+    .hero-card strong {
+      font-size: 1.8rem;
+    }
+
+    .hero-card .line {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    .pipeline {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 9px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .88rem;
+    }
+
+    .pipeline .step {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: var(--text);
+    }
+
+    .shell {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(13, 20, 32, .96);
+      box-shadow: 0 30px 90px rgba(0,0,0,.32);
+    }
+
+    .shell-top {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .shell-title {
+      font-weight: 750;
+    }
+
+    .verified {
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
+    .verified::before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      margin-right: 7px;
+      box-shadow: 0 0 12px rgba(63,185,80,.75);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      padding: 20px 22px 0;
+    }
+
+    .tab {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-weight: 750;
+      padding: 10px 18px;
+      border-radius: 9px;
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-color: var(--blue);
+      background: rgba(88,166,255,.08);
+    }
+
+    .dashboard {
+      padding: 22px;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .scenario-label {
+      color: var(--muted);
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .scenario-title {
+      font-size: 1.75rem;
+      margin: 5px 0 5px;
+    }
+
+    .scenario-copy {
+      color: var(--muted);
+      max-width: 720px;
+      margin: 0;
+    }
+
+    .gate {
+      min-width: 130px;
+      text-align: center;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .gate.pass {
+      color: var(--green);
+      border: 1px solid rgba(63,185,80,.6);
+      background: rgba(63,185,80,.08);
+    }
+
+    .gate.fail {
+      color: var(--red);
+      border: 1px solid rgba(248,81,73,.6);
+      background: rgba(248,81,73,.08);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .metric {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .metric-name {
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 7px;
+    }
+
+    .metric-value {
+      font-size: 1.65rem;
+      font-weight: 850;
+    }
+
+    .metric-sub {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: 5px;
+    }
+
+    .performance-panel {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel-2);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .performance-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+
+    .performance-head strong {
+      font-size: 1rem;
+    }
+
+    .threshold-text {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .85rem;
+    }
+
+    .scale {
+      position: relative;
+      height: 16px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #1a2535;
+    }
+
+    .safe-zone {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 50%;
+      background: linear-gradient(90deg, rgba(63,185,80,.38), rgba(63,185,80,.18));
+    }
+
+    .danger-zone {
+      position: absolute;
+      inset: 0 0 0 50%;
+      background: linear-gradient(90deg, rgba(248,81,73,.14), rgba(248,81,73,.34));
+    }
+
+    .threshold-marker {
+      position: absolute;
+      top: -5px;
+      bottom: -5px;
+      left: 50%;
+      width: 2px;
+      background: var(--yellow);
+      z-index: 3;
+    }
+
+    .value-marker {
+      position: absolute;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      z-index: 4;
+      border: 3px solid #fff;
+      transition: left .55s ease, background .3s ease;
+    }
+
+    .scale-labels {
+      position: relative;
+      height: 26px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: .75rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .scale-labels span {
+      position: absolute;
+      transform: translateX(-50%);
+    }
+
+    .scale-labels span:first-child {
+      left: 0;
+      transform: none;
+    }
+
+    .scale-labels span:nth-child(2) {
+      left: 50%;
+    }
+
+    .scale-labels span:last-child {
+      right: 0;
+      transform: none;
+    }
+
+    .console {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #05080d;
+      overflow: hidden;
+    }
+
+    .console-head {
+      padding: 10px 14px;
+      background: #0b1018;
+      color: var(--muted);
+      font-size: .8rem;
+      border-bottom: 1px solid #17202d;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px;
+      overflow-x: auto;
+      color: #bdd0e7;
+      line-height: 1.65;
+      font-size: .84rem;
+      min-height: 180px;
+    }
+
+    .ok {
+      color: var(--green);
+    }
+
+    .bad {
+      color: var(--red);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .button {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 11px 16px;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .button.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #06111f;
+    }
+
+    .button:hover {
+      filter: brightness(1.12);
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 28px;
+    }
+
+    .info-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--panel);
+      padding: 22px;
+    }
+
+    .info-card h3 {
+      margin: 0 0 12px;
+    }
+
+    .info-card p {
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.65;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #c8dbf0;
+    }
+
+    footer {
+      margin-top: 42px;
+      text-align: center;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    @media (max-width: 850px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .section-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .status-row {
+        grid-template-columns: 1fr;
+      }
+
+      .gate {
+        width: fit-content;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">QA · Performance · CI/CD</div>
+
+        <h1>Performance<br>Regression Gate</h1>
+
+        <p>
+          Un quality gate automático que detecta cuándo una aplicación sigue
+          funcionando correctamente, pero su rendimiento ha empeorado lo
+          suficiente como para impedir una entrega.
+        </p>
+      </div>
+
+      <aside class="hero-card">
+        <small>Threshold principal</small>
+        <strong>p95 &lt; 500 ms</strong>
+
+        <div class="line"></div>
+
+        <div class="pipeline">
+          <span class="step">FastAPI</span>
+          <span>→</span>
+          <span class="step">Docker</span>
+          <span>→</span>
+          <span class="step">k6</span>
+          <span>→</span>
+          <span class="step">GitHub Actions</span>
+        </div>
+      </aside>
+    </section>
+
+    <section class="shell">
+      <div class="shell-top">
+        <div class="shell-title">Quality Gate Dashboard</div>
+        <div class="verified">Resultados verificados en GitHub Actions</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" id="normal-tab" onclick="setScenario('normal')">
+          Normal
+        </button>
+
+        <button class="tab" id="degraded-tab" onclick="setScenario('degraded')">
+          Degraded
+        </button>
+      </div>
+
+      <div class="dashboard">
+
+        <div class="status-row">
+          <div>
+            <div class="scenario-label">Escenario seleccionado</div>
+            <div class="scenario-title" id="scenario-title">Normal</div>
+            <p class="scenario-copy" id="scenario-copy">
+              La API responde sin degradación artificial y cumple todos los
+              límites definidos por el quality gate.
+            </p>
+          </div>
+
+          <div id="gate" class="gate pass">
+            PASS
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-name">p95 latency</div>
+            <div class="metric-value" id="p95">2.03 ms</div>
+            <div class="metric-sub">límite: 500 ms</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-name">HTTP failures</div>
+            <div class="metric-value" id="failures">0%</div>
+            <div class="metric-sub">límite: &lt; 1%</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-name">Checks</div>
+            <div class="metric-value" id="checks">100%</div>
+            <div class="metric-sub" id="checks-detail">10 / 10</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-name">Iterations</div>
+            <div class="metric-value" id="iterations">10</div>
+            <div class="metric-sub">k6 test run</div>
+          </div>
+        </div>
+
+        <div class="performance-panel">
+          <div class="performance-head">
+            <strong>Latency vs performance threshold</strong>
+            <span class="threshold-text">threshold = 500 ms</span>
+          </div>
+
+          <div class="scale">
+            <div class="safe-zone"></div>
+            <div class="danger-zone"></div>
+            <div class="threshold-marker"></div>
+            <div class="value-marker" id="value-marker"></div>
+          </div>
+
+          <div class="scale-labels">
+            <span>0 ms</span>
+            <span>500 ms</span>
+            <span>1000 ms+</span>
+          </div>
+        </div>
+
+        <div class="console">
+          <div class="console-head">
+            k6 quality gate output
+          </div>
+
+          <pre id="console-output"></pre>
+        </div>
+
+        <div class="controls">
+          <button class="button primary" onclick="runDemo()">
+            Ejecutar demo
+          </button>
+
+          <a
+            id="run-link"
+            class="button"
+            href="https://github.com/joseantoniocgonzalez/performance-regression-gate/actions/runs/37916231092"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Ver ejecución real
+          </a>
+
+          <a
+            class="button"
+            href="https://github.com/joseantoniocgonzalez/performance-regression-gate/actions/workflows/performance.yml"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Actions
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-grid">
+      <article class="info-card">
+        <h3>Qué demuestra</h3>
+        <p>
+          El escenario degradado sigue devolviendo HTTP 200 y supera todos los
+          checks funcionales. Sin embargo, su p95 llega aproximadamente a
+          1 segundo. k6 detecta la regresión y devuelve un error al pipeline.
+        </p>
+      </article>
+
+      <article class="info-card">
+        <h3>Quality gate</h3>
+        <p>
+          <code>http_req_duration: p(95) &lt; 500</code><br>
+          <code>http_req_failed: rate &lt; 0.01</code><br>
+          <code>checks: rate &gt; 0.99</code>
+        </p>
+      </article>
+    </section>
+
+    <footer>
+      FastAPI · Docker · k6 · GitHub Actions
+    </footer>
+
+  </div>
+
+  <script>
+    const scenarios = {
+      normal: {
+        title: "Normal",
+        copy:
+          "La API responde sin degradación artificial y cumple todos los límites definidos por el quality gate.",
+        p95: "2.03 ms",
+        failures: "0%",
+        checks: "100%",
+        checksDetail: "10 / 10",
+        iterations: "10",
+        status: "PASS",
+        marker: "1.5%",
+        markerColor: "#3fb950",
+        link:
+          "https://github.com/joseantoniocgonzalez/performance-regression-gate/actions/runs/37916231092",
+        console: [
+          ["✓", "checks", "100.00%  10 out of 10", "ok"],
+          ["✓", "http_req_failed", "0.00%    0 out of 10", "ok"],
+          ["✓", "http_req_duration p(95)", "2.03ms   < 500ms", "ok"],
+          ["", "", "", ""],
+          ["PASS", "Performance quality gate", "", "ok"]
+        ]
+      },
+
+      degraded: {
+        title: "Degraded",
+        copy:
+          "La API sigue respondiendo correctamente, pero introduce aproximadamente 1 segundo de latencia y supera el límite permitido.",
+        p95: "1.00 s",
+        failures: "0%",
+        checks: "100%",
+        checksDetail: "5 / 5",
+        iterations: "5",
+        status: "FAIL",
+        marker: "97%",
+        markerColor: "#f85149",
+        link:
+          "https://github.com/joseantoniocgonzalez/performance-regression-gate/actions/runs/37916410173",
+        console: [
+          ["✓", "checks", "100.00%  5 out of 5", "ok"],
+          ["✓", "http_req_failed", "0.00%    0 out of 5", "ok"],
+          ["✗", "http_req_duration p(95)", "1.00s    > 500ms", "bad"],
+          ["", "", "", ""],
+          ["FAIL", "threshold http_req_duration crossed", "", "bad"]
+        ]
+      }
+    };
+
+    let current = "normal";
+
+    function renderConsole(lines) {
+      const output = document.getElementById("console-output");
+
+      output.innerHTML = lines
+        .map(([symbol, metric, value, cls]) => {
+          if (!symbol && !metric && !value) {
+            return "";
+          }
+
+          return (
+            '<span class="' + cls + '">' +
+            symbol.padEnd(5) +
+            "</span>" +
+            metric.padEnd(30) +
+            value
+          );
+        })
+        .join("\n");
+    }
+
+    function setScenario(name) {
+      current = name;
+
+      const data = scenarios[name];
+
+      document
+        .querySelectorAll(".tab")
+        .forEach((tab) => tab.classList.remove("active"));
+
+      document
+        .getElementById(name + "-tab")
+        .classList.add("active");
+
+      document.getElementById("scenario-title").textContent = data.title;
+      document.getElementById("scenario-copy").textContent = data.copy;
+      document.getElementById("p95").textContent = data.p95;
+      document.getElementById("failures").textContent = data.failures;
+      document.getElementById("checks").textContent = data.checks;
+      document.getElementById("checks-detail").textContent = data.checksDetail;
+      document.getElementById("iterations").textContent = data.iterations;
+
+      const gate = document.getElementById("gate");
+
+      gate.textContent = data.status;
+      gate.className =
+        "gate " + (data.status === "PASS" ? "pass" : "fail");
+
+      const marker = document.getElementById("value-marker");
+
+      marker.style.left = data.marker;
+      marker.style.background = data.markerColor;
+
+      document.getElementById("run-link").href = data.link;
+
+      renderConsole(data.console);
+    }
+
+    function runDemo() {
+      const output = document.getElementById("console-output");
+
+      output.innerHTML =
+        '<span class="muted">Starting k6 performance test...</span>';
+
+      setTimeout(() => {
+        output.innerHTML =
+          '<span class="muted">Sending requests to /work?mode=' +
+          current +
+          "...</span>";
+      }, 450);
+
+      setTimeout(() => {
+        output.innerHTML =
+          '<span class="muted">Calculating p95 and evaluating thresholds...</span>';
+      }, 950);
+
+      setTimeout(() => {
+        renderConsole(scenarios[current].console);
+      }, 1500);
+    }
+
+    setScenario("normal");
+  </script>
+</body>
+</html>
