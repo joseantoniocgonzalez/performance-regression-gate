@@ -1,61 +1,63 @@
 # Performance Regression Gate
 
-Proyecto de QA orientado a detectar automáticamente regresiones de rendimiento mediante **k6**, **FastAPI**, **Docker** y **GitHub Actions**.
+**English** | [Español](README.es.md)
 
-La aplicación puede ejecutarse en modo normal o degradado. k6 mide su comportamiento y aplica un quality gate que decide si el rendimiento es aceptable.
+A performance QA project designed to automatically detect performance regressions using **k6**, **FastAPI**, **Docker**, and **GitHub Actions**.
+
+The application can run in either normal or degraded mode. k6 measures its behavior and applies a quality gate to decide whether performance remains within the accepted limits.
 
 ## Demo
 
-Demo visual pública:
+Public visual demo:
 
 https://joseantoniocgonzalez.github.io/performance-regression-gate/
 
-La demo permite comparar los dos escenarios y consultar las ejecuciones reales de GitHub Actions.
+The demo allows both scenarios to be compared and links to the real GitHub Actions executions.
 
-## Objetivo
+## Purpose
 
-El proyecto demuestra que una aplicación puede seguir funcionando correctamente a nivel funcional y, aun así, sufrir una regresión de rendimiento suficientemente grave como para bloquear una entrega.
+This project demonstrates that an application can remain functionally correct while still suffering a performance regression severe enough to block a release.
 
-El quality gate comprueba:
+The quality gate checks:
 
-- p95 de latencia inferior a 500 ms.
-- tasa de peticiones HTTP fallidas inferior al 1 %.
-- más del 99 % de checks correctos.
+- p95 latency below 500 ms.
+- HTTP request failure rate below 1%.
+- more than 99% successful checks.
 
-Si alguno de estos límites se incumple, k6 devuelve un error y GitHub Actions marca la ejecución como fallida.
+If any of these limits is violated, k6 exits with an error and GitHub Actions marks the execution as failed.
 
-## Escenarios
+## Scenarios
 
 ### Normal
 
-La API responde sin introducir retrasos artificiales.
+The API responds without introducing artificial delay.
 
-Resultado verificado en GitHub Actions:
+Result verified in GitHub Actions:
 
 - p95: **2.03 ms**
-- errores HTTP: **0 %**
-- checks correctos: **100 %**
+- HTTP errors: **0%**
+- successful checks: **100%**
 - Quality gate: **PASS**
 
 ![k6 threshold pass](docs/images/k6-threshold-pass.png)
 
 ### Degraded
 
-La API introduce aproximadamente un segundo de latencia artificial.
+The API introduces approximately one second of artificial latency.
 
-Resultado verificado en GitHub Actions:
+Result verified in GitHub Actions:
 
 - p95: **~1 s**
-- errores HTTP: **0 %**
-- checks correctos: **100 %**
-- respuestas HTTP: **200**
+- HTTP errors: **0%**
+- successful checks: **100%**
+- HTTP responses: **200**
 - Quality gate: **FAIL**
 
-La aplicación continúa funcionando desde el punto de vista funcional, pero el pipeline detecta la regresión porque el p95 supera el límite de 500 ms.
+The application remains functionally correct, but the pipeline detects the regression because p95 exceeds the 500 ms threshold.
 
 ![k6 threshold fail](docs/images/k6-threshold-fail.png)
 
-## Flujo
+## Flow
 
 ```text
 FastAPI
@@ -80,16 +82,16 @@ Performance thresholds
 GitHub Actions
 ```
 
-El endpoint `/health` permite comprobar que la API está disponible.
+The `/health` endpoint is used to verify that the API is available.
 
-El endpoint `/work` es el sistema bajo prueba:
+The `/work` endpoint is the system under test:
 
-- `mode=normal` responde normalmente.
-- `mode=degraded` introduce un retraso artificial para simular una regresión.
+- `mode=normal` responds normally.
+- `mode=degraded` introduces an artificial delay to simulate a performance regression.
 
 ## Quality Gate
 
-Los límites definidos en k6 son:
+The k6 thresholds are:
 
 ```javascript
 thresholds: {
@@ -99,15 +101,15 @@ thresholds: {
 }
 ```
 
-Esto significa que:
+This means:
 
-- el 95 % de las peticiones debe responder en menos de 500 ms;
-- menos del 1 % de las peticiones puede fallar;
-- más del 99 % de los checks debe completarse correctamente.
+- 95% of requests must respond in under 500 ms;
+- fewer than 1% of HTTP requests may fail;
+- more than 99% of checks must complete successfully.
 
 ## GitHub Actions
 
-El workflow puede ejecutarse manualmente desde GitHub seleccionando uno de los dos escenarios:
+The workflow can be run manually from GitHub by selecting one of the two scenarios:
 
 - `normal`
 - `degraded`
@@ -116,24 +118,26 @@ Workflow:
 
 https://github.com/joseantoniocgonzalez/performance-regression-gate/actions/workflows/performance.yml
 
-Resultados reales:
+Verified runs:
 
 - Normal — PASS:
   https://github.com/joseantoniocgonzalez/performance-regression-gate/actions/runs/37916231092
 - Degraded — FAIL:
   https://github.com/joseantoniocgonzalez/performance-regression-gate/actions/runs/37916410173
 
-El pipeline:
+The pipeline:
 
-1. obtiene el repositorio;
-2. construye y levanta la API con Docker Compose;
-3. espera hasta que `/health` esté disponible;
-4. instala k6;
-5. ejecuta el escenario seleccionado;
-6. evalúa los thresholds;
-7. limpia los contenedores al finalizar.
+1. checks out the repository;
+2. builds and starts the API with Docker Compose;
+3. waits until `/health` is available;
+4. installs k6;
+5. runs the selected scenario;
+6. evaluates the thresholds;
+7. stops the containers after execution.
 
-## Estructura
+The failed degraded run is intentional: it demonstrates that the quality gate blocks a functionally valid application when its performance exceeds the defined limit.
+
+## Structure
 
 ```text
 performance-regression-gate/
@@ -155,44 +159,45 @@ performance-regression-gate/
 │       └── performance.yml
 ├── docker-compose.yml
 ├── .gitignore
+├── README.es.md
 └── README.md
 ```
 
-## Ejecución con Docker
+## Running with Docker
 
-Levantar la API:
+Start the API:
 
 ```bash
 docker compose up -d --build
 ```
 
-Comprobar que está disponible:
+Check that it is available:
 
 ```bash
 curl http://127.0.0.1:8000/health
 ```
 
-Ejecutar el escenario normal:
+Run the normal scenario:
 
 ```bash
 MODE=normal k6 run k6/smoke.js
 ```
 
-Ejecutar el escenario degradado:
+Run the degraded scenario:
 
 ```bash
 MODE=degraded k6 run k6/smoke.js
 ```
 
-Detener los contenedores:
+Stop the containers:
 
 ```bash
 docker compose down
 ```
 
-## Ejecución local sin Docker
+## Running locally without Docker
 
-Crear y activar el entorno virtual:
+Create and activate a virtual environment:
 
 ```bash
 python3 -m venv .venv
@@ -200,15 +205,15 @@ source .venv/bin/activate
 pip install -r api/requirements.txt
 ```
 
-Levantar la API:
+Start the API:
 
 ```bash
 uvicorn api.app:app --reload
 ```
 
-Después pueden ejecutarse los mismos escenarios de k6.
+The same k6 scenarios can then be executed.
 
-## Tecnologías
+## Technologies
 
 - FastAPI
 - Python
@@ -218,8 +223,8 @@ Después pueden ejecutarse los mismos escenarios de k6.
 - GitHub Actions
 - GitHub Pages
 
-## Estado
+## Status
 
-Proyecto completado.
+Project complete.
 
-Incluye API de prueba, simulación controlada de degradación, pruebas automatizadas de rendimiento, quality gate, contenerización, integración CI y demo pública.
+It includes a test API, controlled degradation simulation, automated performance testing, a quality gate, containerization, CI integration, and a public demo.
